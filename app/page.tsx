@@ -78,9 +78,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 function PriorityBadge({ priority }: { priority: string }) {
   return (
     <span
-      className={`px-2 py-0.5 rounded text-xs font-semibold ${
-        PRIORITY_STYLES[priority] || PRIORITY_STYLES.P3
-      }`}
+      className={`px-2 py-0.5 rounded text-xs font-semibold ${PRIORITY_STYLES[priority] || PRIORITY_STYLES.P3}`}
     >
       {priority}
     </span>
@@ -94,11 +92,7 @@ function FlagBadge({ flag }: { flag: string }) {
     flag === "school_opens_soon";
   return (
     <span
-      className={`px-2 py-0.5 rounded-full text-xs border ${
-        isUrgent
-          ? "bg-red-50 text-red-700 border-red-200"
-          : "bg-gray-100 text-gray-600 border-gray-200"
-      }`}
+      className={`px-2 py-0.5 rounded-full text-xs border ${isUrgent ? "bg-red-50 text-red-700 border-red-200" : "bg-gray-100 text-gray-600 border-gray-200"}`}
     >
       {flag.replace(/_/g, " ")}
     </span>
@@ -150,13 +144,7 @@ function AgentPipeline({ steps }: { steps: AgentStep[] }) {
           </div>
           <div className="flex-1">
             <span
-              className={`font-medium ${
-                step.status === "pending"
-                  ? "text-gray-400"
-                  : step.status === "running"
-                    ? "text-blue-600"
-                    : "text-gray-700"
-              }`}
+              className={`font-medium ${step.status === "pending" ? "text-gray-400" : step.status === "running" ? "text-blue-600" : "text-gray-700"}`}
             >
               {step.label}
             </span>
@@ -173,13 +161,18 @@ function AgentPipeline({ steps }: { steps: AgentStep[] }) {
   );
 }
 
-function FeedbackRow({ triageId }: { triageId?: string }) {
-  const [submitted, setSubmitted] = useState<"correct" | "incorrect" | null>(
-    null,
-  );
-
-  const submit = async (rating: "correct" | "incorrect") => {
-    setSubmitted(rating);
+function FeedbackRow({
+  triageId,
+  submitted,
+  onSubmit,
+}: {
+  triageId?: string;
+  submitted?: "correct" | "incorrect";
+  onSubmit: (id: string, rating: "correct" | "incorrect") => void;
+}) {
+  const handleSubmit = async (rating: "correct" | "incorrect") => {
+    if (!triageId) return;
+    onSubmit(triageId, rating);
     await fetch("/api/feedback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -201,7 +194,7 @@ function FeedbackRow({ triageId }: { triageId?: string }) {
       <span className="text-xs text-gray-400">Was this triage accurate?</span>
       <div className="flex gap-2">
         <button
-          onClick={() => submit("correct")}
+          onClick={() => handleSubmit("correct")}
           className="flex items-center gap-1 px-2.5 py-1 text-xs border border-green-200 text-green-700 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
         >
           <svg
@@ -220,7 +213,7 @@ function FeedbackRow({ triageId }: { triageId?: string }) {
           Correct
         </button>
         <button
-          onClick={() => submit("incorrect")}
+          onClick={() => handleSubmit("incorrect")}
           className="flex items-center gap-1 px-2.5 py-1 text-xs border border-red-200 text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
         >
           <svg
@@ -243,7 +236,15 @@ function FeedbackRow({ triageId }: { triageId?: string }) {
   );
 }
 
-function TriageCard({ result }: { result: TriageResult }) {
+function TriageCard({
+  result,
+  feedbackMap,
+  onFeedbackSubmit,
+}: {
+  result: TriageResult;
+  feedbackMap: Record<string, "correct" | "incorrect">;
+  onFeedbackSubmit: (id: string, rating: "correct" | "incorrect") => void;
+}) {
   const [copied, setCopied] = useState(false);
   const [editedReply, setEditedReply] = useState(result.reply.draft_reply);
   const isPrivacy = result.classification.category === "privacy_incident";
@@ -264,24 +265,10 @@ function TriageCard({ result }: { result: TriageResult }) {
 
   return (
     <div
-      className={`rounded-xl border ${
-        isPrivacy
-          ? "border-red-300 bg-red-50"
-          : isP1
-            ? "border-amber-200 bg-amber-50"
-            : "border-gray-200 bg-white"
-      } overflow-hidden`}
+      className={`rounded-xl border ${isPrivacy ? "border-red-300 bg-red-50" : isP1 ? "border-amber-200 bg-amber-50" : "border-gray-200 bg-white"} overflow-hidden`}
     >
       <div
-        className={`px-5 py-3 flex items-center justify-between ${
-          isPrivacy ? "bg-red-100" : isP1 ? "bg-amber-100" : "bg-gray-50"
-        } border-b ${
-          isPrivacy
-            ? "border-red-200"
-            : isP1
-              ? "border-amber-200"
-              : "border-gray-200"
-        }`}
+        className={`px-5 py-3 flex items-center justify-between ${isPrivacy ? "bg-red-100" : isP1 ? "bg-amber-100" : "bg-gray-50"} border-b ${isPrivacy ? "border-red-200" : isP1 ? "border-amber-200" : "border-gray-200"}`}
       >
         <div className="flex items-center gap-2">
           <PriorityBadge priority={result.priority.priority} />
@@ -336,13 +323,7 @@ function TriageCard({ result }: { result: TriageResult }) {
               Confidence
             </span>
             <p
-              className={`font-medium capitalize ${
-                result.classification.confidence === "high"
-                  ? "text-green-600"
-                  : result.classification.confidence === "medium"
-                    ? "text-amber-600"
-                    : "text-red-600"
-              }`}
+              className={`font-medium capitalize ${result.classification.confidence === "high" ? "text-green-600" : result.classification.confidence === "medium" ? "text-amber-600" : "text-red-600"}`}
             >
               {result.classification.confidence}
             </p>
@@ -369,7 +350,6 @@ function TriageCard({ result }: { result: TriageResult }) {
             </span>
             <span className="text-xs text-gray-400">Edit before sending</span>
           </div>
-
           {isPrivacy ? (
             <div className="rounded-lg p-3 text-sm bg-red-100 border border-red-200 text-red-800 font-medium">
               {editedReply}
@@ -382,7 +362,6 @@ function TriageCard({ result }: { result: TriageResult }) {
               onChange={(e) => setEditedReply(e.target.value)}
             />
           )}
-
           {!isPrivacy && (
             <div className="flex gap-2 mt-2">
               <button
@@ -436,26 +415,38 @@ function TriageCard({ result }: { result: TriageResult }) {
           </p>
         </div>
 
-        <FeedbackRow triageId={result.message.message_id} />
+        <FeedbackRow
+          triageId={result.message.message_id}
+          submitted={
+            result.message.message_id
+              ? feedbackMap[result.message.message_id]
+              : undefined
+          }
+          onSubmit={onFeedbackSubmit}
+        />
       </div>
     </div>
   );
 }
 
-function ExpandableRow({ index, r }: { index: number; r: TriageResult }) {
+function ExpandableRow({
+  index,
+  r,
+  feedbackMap,
+  onFeedbackSubmit,
+}: {
+  index: number;
+  r: TriageResult;
+  feedbackMap: Record<string, "correct" | "incorrect">;
+  onFeedbackSubmit: (id: string, rating: "correct" | "incorrect") => void;
+}) {
   const [expanded, setExpanded] = useState(false);
 
   return (
     <div>
       <div
         onClick={() => setExpanded(!expanded)}
-        className={`px-5 py-3 flex items-center gap-4 text-sm cursor-pointer hover:bg-gray-50 ${
-          r.classification.category === "privacy_incident"
-            ? "bg-red-50"
-            : r.priority.priority === "P1"
-              ? "bg-amber-50"
-              : ""
-        }`}
+        className={`px-5 py-3 flex items-center gap-4 text-sm cursor-pointer hover:bg-gray-50 ${r.classification.category === "privacy_incident" ? "bg-red-50" : r.priority.priority === "P1" ? "bg-amber-50" : ""}`}
       >
         <PriorityBadge priority={r.priority.priority} />
         <div className="flex-1 min-w-0">
@@ -492,14 +483,24 @@ function ExpandableRow({ index, r }: { index: number; r: TriageResult }) {
       </div>
       {expanded && (
         <div className="px-5 pb-5 pt-3 bg-gray-50 border-t border-gray-100">
-          <TriageCard result={r} />
+          <TriageCard
+            result={r}
+            feedbackMap={feedbackMap}
+            onFeedbackSubmit={onFeedbackSubmit}
+          />
         </div>
       )}
     </div>
   );
 }
 
-function Dashboard() {
+function Dashboard({
+  feedbackMap,
+  onFeedbackSubmit,
+}: {
+  feedbackMap: Record<string, "correct" | "incorrect">;
+  onFeedbackSubmit: (id: string, rating: "correct" | "incorrect") => void;
+}) {
   const [rows, setRows] = useState<DashboardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
@@ -596,11 +597,7 @@ function Dashboard() {
             onClick={() =>
               setFilter(filter === s.filterKey ? "all" : s.filterKey)
             }
-            className={`rounded-xl border p-4 text-center cursor-pointer transition-all ${
-              filter === s.filterKey
-                ? "border-gray-400 bg-gray-100 ring-2 ring-gray-300"
-                : "bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-            }`}
+            className={`rounded-xl border p-4 text-center cursor-pointer transition-all ${filter === s.filterKey ? "border-gray-400 bg-gray-100 ring-2 ring-gray-300" : "bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50"}`}
           >
             <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
             <div className="text-xs text-gray-500 mt-1">{s.label}</div>
@@ -618,11 +615,7 @@ function Dashboard() {
               <button
                 key={f}
                 onClick={() => setFilter(filter === f ? "all" : f)}
-                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                  filter === f
-                    ? "bg-gray-900 text-white"
-                    : "text-gray-500 hover:bg-gray-100"
-                }`}
+                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${filter === f ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-100"}`}
               >
                 {f === "all" ? "All" : f}
               </button>
@@ -637,13 +630,7 @@ function Dashboard() {
                 onClick={() =>
                   setExpandedId(expandedId === row.id ? null : row.id)
                 }
-                className={`px-5 py-3 flex items-center gap-4 text-sm cursor-pointer hover:bg-gray-50 ${
-                  row.category === "privacy_incident"
-                    ? "bg-red-50"
-                    : row.priority === "P1"
-                      ? "bg-amber-50"
-                      : ""
-                }`}
+                className={`px-5 py-3 flex items-center gap-4 text-sm cursor-pointer hover:bg-gray-50 ${row.category === "privacy_incident" ? "bg-red-50" : row.priority === "P1" ? "bg-amber-50" : ""}`}
               >
                 <PriorityBadge priority={row.priority} />
                 <div className="flex-1 min-w-0">
@@ -707,6 +694,8 @@ function Dashboard() {
                         escalation_reason: "",
                       },
                     }}
+                    feedbackMap={feedbackMap}
+                    onFeedbackSubmit={onFeedbackSubmit}
                   />
                 </div>
               )}
@@ -730,6 +719,16 @@ function initSteps(): AgentStep[] {
 
 export default function Home() {
   const [tab, setTab] = useState<"single" | "batch" | "dashboard">("single");
+  const [feedbackMap, setFeedbackMap] = useState<
+    Record<string, "correct" | "incorrect">
+  >({});
+
+  const handleFeedbackSubmit = (
+    id: string,
+    rating: "correct" | "incorrect",
+  ) => {
+    setFeedbackMap((prev) => ({ ...prev, [id]: rating }));
+  };
 
   const [form, setForm] = useState({
     sender_name: "",
@@ -785,13 +784,9 @@ export default function Home() {
         const lines = text.split("\n").filter((l) => l.startsWith("data: "));
         for (const line of lines) {
           const data = JSON.parse(line.slice(6));
-          if (data.step === "complete") {
-            setResult(data.result);
-          } else if (data.step === "error") {
-            setError(data.error);
-          } else {
-            updateStep(data.step, data.status, data.output);
-          }
+          if (data.step === "complete") setResult(data.result);
+          else if (data.step === "error") setError(data.error);
+          else updateStep(data.step, data.status, data.output);
         }
       }
     } catch (e: any) {
@@ -838,7 +833,7 @@ export default function Home() {
       const res = await fetch("/api/batch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages }),
+        body: JSON.stringify({ messages, is_reference: true }),
       });
 
       const reader = res.body!.getReader();
@@ -851,20 +846,18 @@ export default function Home() {
         const lines = text.split("\n").filter((l) => l.startsWith("data: "));
         for (const line of lines) {
           const data = JSON.parse(line.slice(6));
-          if (data.type === "progress") {
+          if (data.type === "progress")
             setBatchProgress({
               current: data.current,
               total: data.total,
               sender: data.sender,
             });
-          } else if (data.type === "result") {
+          else if (data.type === "result")
             setBatchResults((prev) => [
               ...prev,
               { index: data.index, result: data.result },
             ]);
-          } else if (data.type === "complete") {
-            setBatchProgress(null);
-          }
+          else if (data.type === "complete") setBatchProgress(null);
         }
       }
     } catch (e: any) {
@@ -927,11 +920,7 @@ export default function Home() {
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors capitalize ${
-                tab === t
-                  ? "bg-gray-900 text-white"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors capitalize ${tab === t ? "bg-gray-900 text-white" : "text-gray-600 hover:text-gray-900"}`}
             >
               {t === "single"
                 ? "Single message"
@@ -1030,7 +1019,11 @@ export default function Home() {
                 <h2 className="font-semibold text-gray-800 mb-3">
                   Triage result
                 </h2>
-                <TriageCard result={result} />
+                <TriageCard
+                  result={result}
+                  feedbackMap={feedbackMap}
+                  onFeedbackSubmit={handleFeedbackSubmit}
+                />
               </div>
             )}
           </div>
@@ -1127,11 +1120,7 @@ export default function Home() {
                           batchFilter === s.filterKey ? "all" : s.filterKey,
                         )
                       }
-                      className={`rounded-xl border p-4 text-center cursor-pointer transition-all ${
-                        batchFilter === s.filterKey
-                          ? "border-gray-400 bg-gray-100 ring-2 ring-gray-300"
-                          : "bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                      }`}
+                      className={`rounded-xl border p-4 text-center cursor-pointer transition-all ${batchFilter === s.filterKey ? "border-gray-400 bg-gray-100 ring-2 ring-gray-300" : "bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50"}`}
                     >
                       <div className={`text-2xl font-bold ${s.color}`}>
                         {s.value}
@@ -1155,11 +1144,7 @@ export default function Home() {
                           onClick={() =>
                             setBatchFilter(batchFilter === f ? "all" : f)
                           }
-                          className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                            batchFilter === f
-                              ? "bg-gray-900 text-white"
-                              : "text-gray-500 hover:bg-gray-100"
-                          }`}
+                          className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${batchFilter === f ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-100"}`}
                         >
                           {f === "all" ? "All" : f}
                         </button>
@@ -1168,7 +1153,13 @@ export default function Home() {
                   </div>
                   <div className="divide-y divide-gray-100">
                     {filteredBatch.map(({ index, result: r }) => (
-                      <ExpandableRow key={index} index={index} r={r} />
+                      <ExpandableRow
+                        key={index}
+                        index={index}
+                        r={r}
+                        feedbackMap={feedbackMap}
+                        onFeedbackSubmit={handleFeedbackSubmit}
+                      />
                     ))}
                   </div>
                 </div>
@@ -1177,7 +1168,12 @@ export default function Home() {
           </div>
         )}
 
-        {tab === "dashboard" && <Dashboard />}
+        {tab === "dashboard" && (
+          <Dashboard
+            feedbackMap={feedbackMap}
+            onFeedbackSubmit={handleFeedbackSubmit}
+          />
+        )}
       </div>
     </div>
   );
