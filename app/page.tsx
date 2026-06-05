@@ -802,8 +802,17 @@ export default function Home() {
         const lines = text.split("\n").filter((l) => l.startsWith("data: "));
         for (const line of lines) {
           const data = JSON.parse(line.slice(6));
-          if (data.step === "complete") setResult(data.result);
-          else if (data.step === "error") setError(data.error);
+          if (data.step === "complete") {
+            const resultWithId = {
+              ...data.result,
+              message: {
+                ...data.result.message,
+                message_id:
+                  data.result.message.message_id || `single-${Date.now()}`,
+              },
+            };
+            setResult(resultWithId);
+          } else if (data.step === "error") setError(data.error);
           else updateStep(data.step, data.status, data.output);
         }
       }
