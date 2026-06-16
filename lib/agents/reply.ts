@@ -8,7 +8,7 @@ import {
 } from "@/types/triage";
 import { trackTokens } from "@/lib/tokenTracker";
 
-const SYSTEM_PROMPT = `You are a reply specialist for Brightwheel's onboarding team. Classification, priority, and routing are already determined. Your ONLY job: draft an appropriate reply.
+const SYSTEM_PROMPT = `You are a reply specialist for a SaaS company's onboarding team responsible for getting newly signed customers live on the platform within their first 30 days. Classification, priority, and routing are already determined. Your ONLY job: draft an appropriate reply.
 
 RULES:
 - Use the sender's first name

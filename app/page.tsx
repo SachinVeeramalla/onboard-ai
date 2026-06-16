@@ -954,12 +954,9 @@ export default function Home() {
             </svg>
           </div>
           <div>
-            <h1 className="text-lg font-bold leading-tight">
-              Brightwheel onboarding triage
-            </h1>
+            <h1 className="text-lg font-bold leading-tight">Onboard.ai</h1>
             <p className="text-indigo-200 text-xs">
-              AI-powered message classification, prioritization, routing, and
-              reply drafting
+              AI-powered message triage for SaaS onboarding teams
             </p>
           </div>
         </div>
