@@ -166,7 +166,7 @@ function AgentPipeline({ steps }: { steps: AgentStep[] }) {
   );
 }
 
-function LogoutButton() {
+function LogoutButton({ email }: { email?: string | null }) {
   const [loading, setLoading] = useState(false);
 
   const handleLogout = async () => {
@@ -177,13 +177,18 @@ function LogoutButton() {
   };
 
   return (
-    <button
-      onClick={handleLogout}
-      disabled={loading}
-      className="text-xs text-indigo-200 hover:text-white border border-indigo-400 hover:border-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
-    >
-      {loading ? "Signing out..." : "Sign out"}
-    </button>
+    <div className="flex items-center gap-3">
+      {email && (
+        <span className="text-xs text-indigo-200 hidden sm:block">{email}</span>
+      )}
+      <button
+        onClick={handleLogout}
+        disabled={loading}
+        className="text-xs text-indigo-200 hover:text-white border border-indigo-400 hover:border-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+      >
+        {loading ? "Signing out..." : "Sign out"}
+      </button>
+    </div>
   );
 }
 
@@ -762,6 +767,18 @@ export default function Home() {
   const [feedbackMap, setFeedbackMap] = useState<
     Record<string, "correct" | "incorrect">
   >({});
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setUserEmail(user?.email ?? null);
+    };
+    getUser();
+  }, []);
 
   const handleFeedbackSubmit = (
     id: string,
@@ -986,7 +1003,7 @@ export default function Home() {
               AI-powered message triage for SaaS onboarding teams
             </p>
           </div>
-          <LogoutButton />
+          <LogoutButton email={userEmail} />
         </div>
       </div>
 
