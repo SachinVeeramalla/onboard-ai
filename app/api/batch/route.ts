@@ -1,10 +1,21 @@
 import { NextRequest } from "next/server";
 import { orchestrate } from "@/lib/orchestrator";
 import { InboundMessage } from "@/types/triage";
+import { createClient } from "@/lib/supabase/server";
 
 export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
+  // Extract authenticated user from session
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const body = (await req.json()) as {
     messages: InboundMessage[];
     is_reference?: boolean;
@@ -35,7 +46,7 @@ export async function POST(req: NextRequest) {
         sender: msg.sender_name,
       });
       try {
-        const result = await orchestrate(msg, undefined, isReference);
+        const result = await orchestrate(msg, undefined, isReference, user.id);
         results.push(result);
         await send({ type: "result", index: i, result });
       } catch (err: any) {

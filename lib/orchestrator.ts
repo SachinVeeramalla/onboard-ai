@@ -10,13 +10,14 @@ export async function orchestrate(
   message: InboundMessage,
   onStep?: (step: string, status: string, output?: string) => void,
   isReference = false,
+  userId?: string,
 ): Promise<TriageResult> {
   const step = (name: string, status: string, output?: string) => {
     onStep?.(name, status, output);
   };
 
   // Store a placeholder first to get the triageId for token tracking
-  const triageId = await reserveTriageId(message, isReference);
+  const triageId = await reserveTriageId(message, isReference, userId);
 
   step("classifier", "running");
   const classification = await classifierAgent(message, triageId);
@@ -69,7 +70,7 @@ export async function orchestrate(
       escalation,
     };
 
-    await finalizeResult(triageId, result, isReference);
+    await finalizeResult(triageId, result, isReference, userId);
     return result;
   }
 
@@ -123,7 +124,7 @@ export async function orchestrate(
     escalation,
   };
 
-  await finalizeResult(triageId, result, isReference);
+  await finalizeResult(triageId, result, isReference, userId);
   return result;
 }
 
@@ -131,6 +132,7 @@ export async function orchestrate(
 async function reserveTriageId(
   message: InboundMessage,
   isReference: boolean,
+  userId?: string,
 ): Promise<string> {
   const { data } = await supabase
     .from("triage_results")
@@ -142,6 +144,7 @@ async function reserveTriageId(
       subject: message.subject,
       body: message.body,
       is_reference: isReference,
+      user_id: userId ?? null,
       // Placeholder values — updated by finalizeResult
       category: "pending",
       priority: "P3",
@@ -164,6 +167,7 @@ async function finalizeResult(
   triageId: string,
   result: TriageResult,
   isReference: boolean,
+  userId?: string,
 ) {
   await supabase
     .from("triage_results")
@@ -178,6 +182,7 @@ async function finalizeResult(
       reasoning: result.classification.reasoning,
       needs_human_review: result.escalation.needs_human_review,
       is_reference: isReference,
+      user_id: userId ?? null,
     })
     .eq("id", triageId);
 
@@ -191,6 +196,7 @@ async function finalizeResult(
       escalation_type: result.escalation.flags.includes("privacy_incident")
         ? "privacy"
         : "urgent",
+      user_id: userId ?? null,
     });
   }
 
@@ -199,6 +205,7 @@ async function finalizeResult(
       triage_id: triageId,
       redirect_to: result.routing.assigned_to,
       redirect_reason: result.routing.routing_reason,
+      user_id: userId ?? null,
     });
   }
 }

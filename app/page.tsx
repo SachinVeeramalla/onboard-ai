@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 type AgentStep = {
   name: string;
@@ -92,7 +93,8 @@ function FlagBadge({ flag }: { flag: string }) {
   const isUrgent =
     flag === "privacy_incident" ||
     flag === "needs_human_review" ||
-    flag === "school_opens_soon";
+    flag === "school_opens_soon" ||
+    flag === "go_live_soon";
   return (
     <span
       className={`px-2 py-0.5 rounded-full text-xs border ${isUrgent ? "bg-red-50 text-red-700 border-red-200" : "bg-gray-100 text-gray-600 border-gray-200"}`}
@@ -161,6 +163,27 @@ function AgentPipeline({ steps }: { steps: AgentStep[] }) {
         </div>
       ))}
     </div>
+  );
+}
+
+function LogoutButton() {
+  const [loading, setLoading] = useState(false);
+
+  const handleLogout = async () => {
+    setLoading(true);
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.href = "/login";
+  };
+
+  return (
+    <button
+      onClick={handleLogout}
+      disabled={loading}
+      className="text-xs text-indigo-200 hover:text-white border border-indigo-400 hover:border-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+    >
+      {loading ? "Signing out..." : "Sign out"}
+    </button>
   );
 }
 
@@ -360,7 +383,6 @@ function TriageCard({
           ) : (
             <textarea
               className="w-full rounded-lg p-3 text-sm text-gray-800 bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 resize-none"
-              style={{ "--tw-ring-color": BW_PRIMARY } as React.CSSProperties}
               rows={6}
               value={editedReply}
               onChange={(e) => setEditedReply(e.target.value)}
@@ -812,8 +834,11 @@ export default function Home() {
               },
             };
             setResult(resultWithId);
-          } else if (data.step === "error") setError(data.error);
-          else updateStep(data.step, data.status, data.output);
+          } else if (data.step === "error") {
+            setError(data.error);
+          } else {
+            updateStep(data.step, data.status, data.output);
+          }
         }
       }
     } catch (e: any) {
@@ -873,18 +898,20 @@ export default function Home() {
         const lines = text.split("\n").filter((l) => l.startsWith("data: "));
         for (const line of lines) {
           const data = JSON.parse(line.slice(6));
-          if (data.type === "progress")
+          if (data.type === "progress") {
             setBatchProgress({
               current: data.current,
               total: data.total,
               sender: data.sender,
             });
-          else if (data.type === "result")
+          } else if (data.type === "result") {
             setBatchResults((prev) => [
               ...prev,
               { index: data.index, result: data.result },
             ]);
-          else if (data.type === "complete") setBatchProgress(null);
+          } else if (data.type === "complete") {
+            setBatchProgress(null);
+          }
         }
       }
     } catch (e: any) {
@@ -953,12 +980,13 @@ export default function Home() {
               />
             </svg>
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="text-lg font-bold leading-tight">Onboard.ai</h1>
             <p className="text-indigo-200 text-xs">
               AI-powered message triage for SaaS onboarding teams
             </p>
           </div>
+          <LogoutButton />
         </div>
       </div>
 
@@ -996,9 +1024,6 @@ export default function Home() {
                   </label>
                   <input
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 bg-white"
-                    style={
-                      { "--tw-ring-color": BW_PRIMARY } as React.CSSProperties
-                    }
                     placeholder="Sandra Rivera"
                     value={form.sender_name}
                     onChange={(e) =>
@@ -1012,7 +1037,7 @@ export default function Home() {
                   </label>
                   <input
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 bg-white"
-                    placeholder="srivera@school.org"
+                    placeholder="srivera@company.com"
                     value={form.sender_email}
                     onChange={(e) =>
                       setForm((f) => ({ ...f, sender_email: e.target.value }))
@@ -1026,7 +1051,7 @@ export default function Home() {
                 </label>
                 <input
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 bg-white"
-                  placeholder="URGENT - parents cannot log in"
+                  placeholder="URGENT - users cannot log in"
                   value={form.subject}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, subject: e.target.value }))
