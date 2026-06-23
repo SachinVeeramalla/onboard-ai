@@ -1,4 +1,5 @@
 export const runtime = "nodejs";
+export const maxDuration = 30;
 
 import { NextRequest } from "next/server";
 import { orchestrate } from "@/lib/orchestrator";
@@ -9,17 +10,6 @@ function stripHtml(html: string): string {
     .replace(/<[^>]*>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-async function getSystemUserId(): Promise<string | undefined> {
-  const { data } = await supabase
-    .from("triage_results")
-    .select("user_id")
-    .not("user_id", "is", null)
-    .limit(1)
-    .single();
-
-  return data?.user_id ?? undefined;
 }
 
 function verifySecret(req: NextRequest): boolean {
@@ -35,7 +25,6 @@ function verifySecret(req: NextRequest): boolean {
     return false;
   }
 
-  // Constant time comparison to prevent timing attacks
   if (secret.length !== expectedSecret.length) {
     return false;
   }
@@ -50,7 +39,6 @@ function verifySecret(req: NextRequest): boolean {
 
 export async function POST(req: NextRequest) {
   try {
-    // Verify the request is genuinely from Postmark
     if (!verifySecret(req)) {
       console.warn("Webhook rejected — invalid or missing secret");
       return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -58,7 +46,6 @@ export async function POST(req: NextRequest) {
 
     const payload = await req.json();
 
-    // Extract fields from Postmark payload
     const senderName =
       payload.FromName || payload.From?.split("@")[0] || "Unknown";
     const senderEmail = payload.From || "";
@@ -67,7 +54,6 @@ export async function POST(req: NextRequest) {
     const messageId = payload.MessageID || `email-${Date.now()}`;
     const receivedAt = payload.Date || new Date().toISOString();
 
-    // Reject if missing critical fields
     if (!senderEmail || !body) {
       console.warn(
         `Webhook rejected — missing fields for message ${messageId}`,
@@ -78,7 +64,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Reject empty or very short bodies — likely automated bounce or receipt
     if (body.trim().length < 10) {
       console.warn(
         `Webhook rejected — body too short for message ${messageId}`,
@@ -95,11 +80,20 @@ export async function POST(req: NextRequest) {
       received_at: receivedAt,
     };
 
-    const userId = await getSystemUserId();
+    // Await the full pipeline before responding to Postmark
+    // maxDuration = 30 keeps the Vercel function alive long enough
+    // Promise.race with 25s timeout ensures we always respond before Postmark's 30s limit
+    const timeoutPromise = new Promise<void>((resolve) =>
+      setTimeout(resolve, 25000),
+    );
 
-    // Fire and forget — respond to Postmark immediately
-    // Do not await orchestrate or Postmark will time out
-    orchestrate(message, undefined, false, userId, "email")
+    const triagePromise = orchestrate(
+      message,
+      undefined,
+      false,
+      undefined,
+      "email",
+    )
       .then(async () => {
         await supabase
           .from("triage_results")
@@ -111,12 +105,11 @@ export async function POST(req: NextRequest) {
         console.error(`Email triage failed for ${messageId}:`, err.message);
       });
 
-    // Postmark expects 200 immediately
+    await Promise.race([triagePromise, timeoutPromise]);
+
     return Response.json({ received: true }, { status: 200 });
   } catch (err: any) {
     console.error("Webhook error:", err.message);
-    // Return 200 even on error to prevent Postmark retries
-    // Errors are logged internally
     return Response.json({ received: true }, { status: 200 });
   }
 }
