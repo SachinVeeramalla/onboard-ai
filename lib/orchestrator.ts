@@ -11,13 +11,14 @@ export async function orchestrate(
   onStep?: (step: string, status: string, output?: string) => void,
   isReference = false,
   userId?: string,
+  source = "manual",
 ): Promise<TriageResult> {
   const step = (name: string, status: string, output?: string) => {
     onStep?.(name, status, output);
   };
 
   // Store a placeholder first to get the triageId for token tracking
-  const triageId = await reserveTriageId(message, isReference, userId);
+  const triageId = await reserveTriageId(message, isReference, userId, source);
 
   step("classifier", "running");
   const classification = await classifierAgent(message, triageId);
@@ -70,7 +71,7 @@ export async function orchestrate(
       escalation,
     };
 
-    await finalizeResult(triageId, result, isReference, userId);
+    await finalizeResult(triageId, result, isReference, userId, source);
     return result;
   }
 
@@ -124,7 +125,7 @@ export async function orchestrate(
     escalation,
   };
 
-  await finalizeResult(triageId, result, isReference, userId);
+  await finalizeResult(triageId, result, isReference, userId, source);
   return result;
 }
 
@@ -133,6 +134,7 @@ async function reserveTriageId(
   message: InboundMessage,
   isReference: boolean,
   userId?: string,
+  source = "manual",
 ): Promise<string> {
   const { data } = await supabase
     .from("triage_results")
@@ -145,6 +147,7 @@ async function reserveTriageId(
       body: message.body,
       is_reference: isReference,
       user_id: userId ?? null,
+      source,
       // Placeholder values — updated by finalizeResult
       category: "pending",
       priority: "P3",
@@ -168,6 +171,7 @@ async function finalizeResult(
   result: TriageResult,
   isReference: boolean,
   userId?: string,
+  source = "manual",
 ) {
   await supabase
     .from("triage_results")
@@ -183,6 +187,7 @@ async function finalizeResult(
       needs_human_review: result.escalation.needs_human_review,
       is_reference: isReference,
       user_id: userId ?? null,
+      source,
     })
     .eq("id", triageId);
 

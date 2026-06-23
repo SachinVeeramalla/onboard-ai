@@ -46,7 +46,13 @@ export async function POST(req: NextRequest) {
         sender: msg.sender_name,
       });
       try {
-        const result = await orchestrate(msg, undefined, isReference, user.id);
+        const result = await orchestrate(
+          msg,
+          undefined,
+          isReference,
+          user.id,
+          "csv",
+        );
         results.push(result);
         await send({ type: "result", index: i, result });
       } catch (err: any) {

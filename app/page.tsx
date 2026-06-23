@@ -53,6 +53,7 @@ type DashboardRow = {
   flags: string[];
   needs_human_review: boolean;
   reasoning: string;
+  source: string;
 };
 
 const BW_PRIMARY = "#4B4EFC";
@@ -85,6 +86,31 @@ function PriorityBadge({ priority }: { priority: string }) {
       className={`px-2 py-0.5 rounded text-xs font-semibold ${PRIORITY_STYLES[priority] || PRIORITY_STYLES.P3}`}
     >
       {priority}
+    </span>
+  );
+}
+
+function SourceBadge({ source }: { source?: string }) {
+  if (!source || source === "manual") return null;
+
+  const styles: Record<string, string> = {
+    email: "bg-indigo-50 text-indigo-600 border-indigo-200",
+    csv: "bg-emerald-50 text-emerald-600 border-emerald-200",
+  };
+
+  const labels: Record<string, string> = {
+    email: "via email",
+    csv: "via CSV",
+  };
+
+  const style = styles[source] || "bg-gray-50 text-gray-500 border-gray-200";
+  const label = labels[source] || source;
+
+  return (
+    <span
+      className={`text-xs border px-2 py-0.5 rounded-full hidden md:block ${style}`}
+    >
+      {label}
     </span>
   );
 }
@@ -542,6 +568,7 @@ function Dashboard({
   const [rows, setRows] = useState<DashboardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -567,8 +594,13 @@ function Dashboard({
   const wrongCount = rows.filter((r) =>
     r.category.startsWith("wrong_queue"),
   ).length;
+  const emailCount = rows.filter((r) => r.source === "email").length;
+  const csvCount = rows.filter((r) => r.source === "csv").length;
+  const manualCount = rows.filter(
+    (r) => !r.source || r.source === "manual",
+  ).length;
 
-  const filtered =
+  const priorityFiltered =
     filter === "all"
       ? rows
       : filter === "P1"
@@ -580,6 +612,15 @@ function Dashboard({
             : filter === "review"
               ? rows.filter((r) => r.needs_human_review)
               : rows.filter((r) => r.priority === filter);
+
+  const filtered =
+    sourceFilter === "all"
+      ? priorityFiltered
+      : priorityFiltered.filter((r) =>
+          sourceFilter === "manual"
+            ? !r.source || r.source === "manual"
+            : r.source === sourceFilter,
+        );
 
   if (loading) {
     return (
@@ -647,25 +688,52 @@ function Dashboard({
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-wrap gap-2">
           <span className="font-semibold text-gray-800 text-sm">
             {filtered.length} of {rows.length} messages
           </span>
-          <div className="flex gap-1">
-            {["all", "P1", "P2", "P3", "P4"].map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(filter === f ? "all" : f)}
-                className="px-2.5 py-1 rounded text-xs font-medium transition-colors"
-                style={
-                  filter === f
-                    ? { backgroundColor: BW_PRIMARY, color: "white" }
-                    : { color: "#6b7280" }
-                }
-              >
-                {f === "all" ? "All" : f}
-              </button>
-            ))}
+          <div className="flex items-center gap-3">
+            {/* Source filter */}
+            <div className="flex gap-1 bg-gray-50 rounded-lg p-0.5 border border-gray-200">
+              {[
+                { key: "all", label: `All (${rows.length})` },
+                { key: "email", label: `Email (${emailCount})` },
+                { key: "csv", label: `CSV (${csvCount})` },
+                { key: "manual", label: `Manual (${manualCount})` },
+              ].map((s) => (
+                <button
+                  key={s.key}
+                  onClick={() =>
+                    setSourceFilter(sourceFilter === s.key ? "all" : s.key)
+                  }
+                  className="px-2 py-1 rounded text-xs font-medium transition-colors"
+                  style={
+                    sourceFilter === s.key
+                      ? { backgroundColor: BW_PRIMARY, color: "white" }
+                      : { color: "#6b7280" }
+                  }
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            {/* Priority filter */}
+            <div className="flex gap-1">
+              {["all", "P1", "P2", "P3", "P4"].map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(filter === f ? "all" : f)}
+                  className="px-2.5 py-1 rounded text-xs font-medium transition-colors"
+                  style={
+                    filter === f
+                      ? { backgroundColor: BW_PRIMARY, color: "white" }
+                      : { color: "#6b7280" }
+                  }
+                >
+                  {f === "all" ? "All" : f}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -693,6 +761,7 @@ function Dashboard({
                 <span className="text-gray-500 text-xs capitalize hidden sm:block">
                   {row.assigned_to.replace(/_/g, " ")}
                 </span>
+                <SourceBadge source={row.source} />
                 <span className="text-gray-400 text-xs hidden md:block">
                   {new Date(row.created_at).toLocaleDateString()}
                 </span>

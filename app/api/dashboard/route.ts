@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET() {
-  // Extract authenticated user from session
   const supabase = await createClient();
   const {
     data: { user },
@@ -14,7 +13,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("triage_results")
     .select(
-      "id, created_at, sender_name, sender_email, subject, category, priority, assigned_to, draft_reply, confidence, flags, needs_human_review, reasoning",
+      "id, created_at, sender_name, sender_email, subject, category, priority, assigned_to, draft_reply, confidence, flags, needs_human_review, reasoning, source",
     )
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
