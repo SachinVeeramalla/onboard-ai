@@ -1,3 +1,5 @@
+export const runtime = "nodejs";
+
 import { NextRequest } from "next/server";
 import { orchestrate } from "@/lib/orchestrator";
 import { supabase } from "@/lib/supabase";
