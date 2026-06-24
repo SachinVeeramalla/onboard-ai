@@ -52,27 +52,62 @@ export async function POST(req: NextRequest) {
       return Response.json({ received: true }, { status: 200 });
     }
 
-    // Push to pgmq queue — fast, durable, returns immediately
-    // The cron worker picks this up and runs the full triage pipeline
-    const { error } = await supabase.rpc("pgmq_send", {
+    const msg = {
+      message_id: messageId,
+      sender_name: senderName,
+      sender_email: senderEmail,
+      subject,
+      body,
+      received_at: receivedAt,
+    };
+
+    console.log(`Attempting to enqueue message: ${messageId}`);
+
+    // Try pgmq_send wrapper
+    const { data, error } = await supabase.rpc("pgmq_send", {
       queue_name: "email_triage",
-      msg: {
-        message_id: messageId,
-        sender_name: senderName,
-        sender_email: senderEmail,
-        subject,
-        body,
-        received_at: receivedAt,
-      },
+      msg,
     });
 
     if (error) {
-      console.error("Failed to enqueue email:", error.message);
+      console.error("pgmq_send failed:", JSON.stringify(error));
+      // Fall back to direct insert into triage_results as pending
+      // so the message is not lost
+      const { error: insertError } = await supabase
+        .from("triage_results")
+        .insert({
+          message_id: messageId,
+          received_at: receivedAt,
+          sender_name: senderName,
+          sender_email: senderEmail,
+          subject,
+          body,
+          source: "email",
+          category: "pending",
+          priority: "P3",
+          assigned_to: "pending",
+          secondary_owner: "",
+          draft_reply: "",
+          confidence: "low",
+          flags: [],
+          reasoning: "",
+          needs_human_review: false,
+          user_id: null,
+          is_reference: false,
+        });
+
+      if (insertError) {
+        console.error(
+          "Fallback insert also failed:",
+          JSON.stringify(insertError),
+        );
+      } else {
+        console.log(`Fallback: saved ${messageId} directly to triage_results`);
+      }
     } else {
-      console.log(`Email enqueued: ${messageId}`);
+      console.log(`Enqueued successfully: ${messageId}, msg_id: ${data}`);
     }
 
-    // Always return 200 so Postmark does not retry
     return Response.json({ received: true }, { status: 200 });
   } catch (err: any) {
     console.error("Webhook error:", err.message);
